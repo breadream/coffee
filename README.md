@@ -40,3 +40,9 @@ Same testing approach will be applied on REMOVE endpoint.
 For the EXPORT endpoint, we can click on the Execute button and Download file link will be available.
 ![plot](images/05.png)
 ![plot](images/06.png)
+
+
+To run unit tests,
+```
+python -m pytest
+```

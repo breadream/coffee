@@ -3,6 +3,7 @@ httpx
 pandas
 pyarrow
 pytest
+pytest-asyncio
 pytest-mock
 sqlalchemy
 trio
