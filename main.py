@@ -23,8 +23,18 @@ logger.setLevel(logging.INFO)
 
 
 async def fetch_data(vin: str) -> dict:
+    """
+    Fetch data from external API (vPIC)
+
+    Args:
+        vin (str): Vehicle Identification Number.
+
+    Returns:
+        dict: A dictionary with the vehicle data.
+    """
     vpic_url = f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/{vin}?format=json"
     try:
+        # Make an asynchronous GET request to the vPIC API
         response = await http_client.get(vpic_url)
         response.raise_for_status()
         data = response.json()
@@ -41,20 +51,29 @@ async def fetch_data(vin: str) -> dict:
         ) from e
 
 
-def process_result(data: dict):
+def process_result(data: dict) -> dict | None:
     """
     Filter out key attribute values from the raw data
+
+    Args:
+        data (dict): The input data dictionary, expected to have a 'Results' key with
+                     data related to VINs.
+
+    Returns:
+        dict: A dictionary with filtered VIN data.
     """
     logger.debug("Processing VIN data...")
     results = data.get("Results", [])
     attr_filled_count = 0
     filtered_data = {}
     for item in results:
+        # if a key attribute is found, populate the filtered_data dictionary
         if item["Variable"] in KEY_ATTRS:
             if item["Value"]:
                 filtered_data[item["Variable"]] = item["Value"]
                 attr_filled_count += 1
             else:
+                # if 'null' is found for a key attribute, it implies the VIN data is not present or invalid.
                 logger.warning(f"Empty value found for {item['Variable']}")
                 raise HTTPException(
                     status_code=404,
@@ -63,6 +82,7 @@ def process_result(data: dict):
                         "X-Error": "VIN doesn't exist or invalid VIN has been entered"
                     },
                 )
+            # if all required key attributes are populated, stop iteration and return the filtered data
             if attr_filled_count == ATTRS_COUNT:
                 logger.debug("VIN data successfully processed")
                 return filtered_data
@@ -74,11 +94,21 @@ async def add_to_cache(
 ):
     """
     Endpoint to look up a VIN and add it to the database if not already present.
+
+    Args:
+        vin_request (model.VinPostRequest): The input VIN to be looked up.
+        db (Session): The database session, injected via dependency injection.
+
+    Returns:
+        model.VinPostResponse: The response model containing VIN details.
     """
     logger.info("Received VIN lookup request")
 
+    # Tracker to see data was found in cache.
     is_data_cached = False
+    # Query the database for the VIN.
     cached_vin = db.query(VinRecord).filter(VinRecord.vin == vin_request.vin).first()
+    # If the VIN is present in the cache, return it and update the is_data_cached flag.
     if cached_vin:
         logger.info("VIN found in cache")
         is_data_cached = True
@@ -92,9 +122,11 @@ async def add_to_cache(
         )
 
     logger.info("Fetching data from external API")
+    # If the VIN was not in the cache, fetch data from the external API.
     data = await fetch_data(vin_request.vin)
     filtered_data = process_result(data)
 
+    # Create a new VIN record with the fetched data.
     logger.info("Creating new VIN record")
     new_vin = VinRecord(
         vin=vin_request.vin,
@@ -105,9 +137,11 @@ async def add_to_cache(
     )
 
     logger.info("Adding new VIN record to the cache")
+    # Add the new VIN record to the database and commit the changes.
     db.add(new_vin)
     db.commit()
 
+    # Return the new VIN data.
     return model.VinPostResponse(
         vin_requested=vin_request.vin,
         make=new_vin.make,
@@ -124,10 +158,19 @@ async def remove_from_cache(
 ):
     """
     Endpoint to remove a VIN entry from the database if present.
+
+    Args:
+        vin_request (model.VinDeleteRequest): The request payload of the VIN to delete.
+        db (Session): SQLAlchemy Session object for database transaction.
+
+    Returns:
+        model.VinDeleteResponse: A response model containing the VIN requested for deletion and the success status.
     """
     logger.info("Received VIN deletion request")
 
+    # Query the database for the VIN requested for deletion.
     cached_vin = db.query(VinRecord).filter(VinRecord.vin == vin_request.vin).first()
+    # If no record found, return a response indicating deletion was unsuccessful.
     if not cached_vin:
         logger.warning("VIN not found in the cache")
         return model.VinDeleteResponse(
@@ -135,23 +178,33 @@ async def remove_from_cache(
         )
 
     logger.info("Deleting VIN record from the cache")
+    # Delete the VIN record from the database and commit the transaction.
     db.delete(cached_vin)
     db.commit()
 
     logger.info("VIN record removed successfully")
+    # Return a response indicating the deletion was successful.
     return model.VinDeleteResponse(vin_requested=vin_request.vin, delete_success=True)
 
 
 @app.get("/export")
 async def export_cache(db: Session = Depends(get_db)) -> Response:
     """
-    Endpoint to export the database as a parquet binary file.
+    Endpoint to export the entire database as a parquet binary file.
+
+    Args:
+        db (Session): SQLAlchemy Session object for database transactions, fetched from Depends(get_db).
+
+    Returns:
+        Response: FastAPI Response object containing the binary content of the parquet file.
     """
     logger.info("Exporting VIN records as Parquet file")
 
+    # Fetch all VIN records from the database.
     vin_records = db.query(VinRecord).all()
 
-    # DataFrame from the VIN records
+    # Create a list of dictionaries, with each dictionary representing a VIN record.
+    # This list will be used to create a DataFrame.
     data = [
         {
             "vin": record.vin,
@@ -162,6 +215,7 @@ async def export_cache(db: Session = Depends(get_db)) -> Response:
         }
         for record in vin_records
     ]
+    # Create a pandas DataFrame from the data.
     df = pd.DataFrame(data)
 
     # Convert DataFrame to Parquet format
@@ -183,9 +237,11 @@ async def export_cache(db: Session = Depends(get_db)) -> Response:
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """
-    Default endpoint to redirect to Swagger UI.
+    Default endpoint that redirects the user to the Swagger UI.
+
+    Returns:
+        HTMLResponse: An HTMLResponse object that represents the Swagger UI page.
     """
-    # Redirect to Swagger UI by default
     return get_swagger_ui_html(openapi_url="/openapi.json", title="API Docs")
 
 

@@ -1,7 +1,11 @@
 # VIN Decode app
 
+### Prerequsite 
+I tested it on **Mac OS** with Python **3.10**, you might need to have the same setup to test out the app.
+
 ### python virtual environment setup
 ```
+cd koffie/
 python -m venv env && source env/bin/activate && pip install -r requirements.txt
 ```
 ### run the program via 
