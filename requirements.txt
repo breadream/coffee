@@ -1,5 +1,7 @@
 fastapi
 httpx
+pandas
+pyarrow
 pytest
 pytest-mock
 sqlalchemy
