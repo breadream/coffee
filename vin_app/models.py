@@ -27,7 +27,7 @@ class VinDeleteRequest(BaseModel):
 
     @validator("vin")
     def validate_vin(cls, vin):
-        if not len(vin) != 17 or not vin.isalnum():
+        if len(vin) != 17 or not vin.isalnum():
             raise ValueError("VIN must contain 17 alphanumeric characters")
         return vin
 

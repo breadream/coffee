@@ -1,4 +1,7 @@
 fastapi
 httpx
+pytest
+pytest-mock
 sqlalchemy
+trio
 uvicorn

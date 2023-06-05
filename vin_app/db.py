@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine, Column, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 SQLALCHEMY_DATABASE_URI = "sqlite:///./vin_records.db"
 
@@ -27,3 +26,14 @@ class VinRecord(Base):
 
 
 Base.metadata.create_all(bind=engine)
+
+
+def get_db():
+    """
+    Dependency function to get a database session.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
