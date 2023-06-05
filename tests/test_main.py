@@ -147,10 +147,18 @@ async def test_add_to_cache_new_vin(mock_db_session_no_data):
 async def test_export_cache(mock_db_session):
     vin_records = [
         VinRecord(
-            vin="VIN123", make="BMW", model="X5", model_year="2022", body_class="SUV"
+            vin="testvin12345abcde",
+            make="BMW",
+            model="X5",
+            model_year="2022",
+            body_class="SUV",
         ),
         VinRecord(
-            vin="VIN456", make="Audi", model="A4", model_year="2023", body_class="Sedan"
+            vin="testvin54321abcde",
+            make="Audi",
+            model="A4",
+            model_year="2023",
+            body_class="Sedan",
         ),
     ]
 
